@@ -1,4 +1,4 @@
-.cmd install listbox.js module.exports = {
+module.exports = {
 	config: {
 		name: "listbox",
 		aliases: [],
