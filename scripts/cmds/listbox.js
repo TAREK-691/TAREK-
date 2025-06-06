@@ -1,59 +1,79 @@
-module.exports.config = {
-  name: "join",
-  version: "1.2",
-  credits: "Tarek x ChatGPT",
-  description: "Join a group by number",
-  commandCategory: "utility",
-  usages: "[group number]",
-  cooldowns: 5
-};
+.cmd install listbox.js module.exports = {
+	config: {
+		name: "listbox",
+		aliases: [],
+		author: "kshitiz",
+		version: "4.0",
+		cooldowns: 5,
+		role: 2,
+		shortDescription: {
+			en: "List all groups and inbox chats with gender details."
+		},
+		longDescription: {
+			en: "List all group chats with gender breakdown and personal inboxes with unknown detection."
+		},
+		category: "owner",
+		guide: {
+			en: "{p}{n}"
+		}
+	},
 
-module.exports.onStart = async function () {
-  // Optional initialization, can be left empty
-};
+	onStart: async function ({ api, event }) {
+		try {
+			const allThreads = await api.getThreadList(100, null, ["INBOX"]);
+			const groupThreads = allThreads.filter(thread => thread.isGroup);
+			const userThreads = allThreads.filter(thread => !thread.isGroup);
 
-module.exports.run = async function ({ api, event, args }) {
-  const threadList = [
-    { id: "100047994102529", members: 2 },
-    { id: "61571630409265", members: 2 },
-    { id: "9861230640579491", members: 46 },
-    { id: "10093109697413862", members: 6 },
-    { id: "9905832306191152", members: 44 },
-    { id: "24077231248569185", members: 187 },
-    { id: "61577095705293", members: 2 },
-    { id: "61575134176561", members: 2 },
-    { id: "61565923611162", members: 2 },
-    { id: "100067593817717", members: 2 }
-  ];
+			// Format group threads with gender breakdown
+			const formatGroupThreads = async (threads) => {
+				const result = await Promise.all(threads.map(async (thread, index) => {
+					let name = thread.threadName || "Unnamed Group";
+					let male = 0, female = 0, unknown = 0;
 
-  if (!args[0]) {
-    let msg = "╭─╮\n│𝐋𝐢𝐬𝐭 𝐨𝐟 𝐠𝐫𝐨𝐮𝐩 𝐜𝐡𝐚𝐭𝐬:\n";
-    let userThreads = await api.getThreadList(100, 1);
-    let userGroups = userThreads.map(t => t.threadID);
+					try {
+						const info = await api.getThreadInfo(thread.threadID);
+						if (info.userInfo) {
+							info.userInfo.forEach(u => {
+								if (u.gender === 'MALE') male++;
+								else if (u.gender === 'FEMALE') female++;
+								else unknown++;
+							});
+							name = info.threadName || name;
+						}
+					} catch (e) {
+						// Skip if error
+					}
 
-    threadList.forEach((thread, index) => {
-      const alreadyJoined = userGroups.includes(thread.id);
-      msg += `│${index + 1}. Unnamed Group\n│𝐓𝐈𝐃: ${thread.id}\n│𝐓𝐨𝐭𝐚𝐥 𝐦𝐞𝐦𝐛𝐞𝐫𝐬: ${thread.members}\n`;
-      if (alreadyJoined) {
-        msg += "│🔒 You have already joined\n";
-      }
-      msg += "│\n";
-    });
+					return `│${index + 1}. ${name}\n│𝐓𝐈𝐃: ${thread.threadID}\n│👨‍🦰 Male: ${male} | 👩‍🦰 Female: ${female} | 🙎‍♂️ Unknown: ${unknown}`;
+				}));
+				return `╭─╮\n│𝐆𝐫𝐨𝐮𝐩 𝐂𝐡𝐚𝐭𝐬 𝐖𝐢𝐭𝐡 𝐆𝐞𝐧𝐝𝐞𝐫:\n${result.join("\n")}\n╰───────────ꔪ`;
+			};
 
-    msg += "╰───────────ꔪ\n𝐌𝐚𝐱𝐢𝐦𝐮𝐦 𝐌𝐞𝐦𝐛𝐞𝐫𝐬 = 250\n\nReply to this message with the number of the group you want to join...";
-    return api.sendMessage(msg, event.threadID, event.messageID);
-  }
+			// Format personal inboxes
+			const formatUserThreads = async (threads) => {
+				const result = await Promise.all(threads.map(async (thread, index) => {
+					let name = thread.threadName;
+					if (!name) {
+						try {
+							const info = await api.getUserInfo(thread.threadID);
+							name = info[thread.threadID]?.name || "Unknown User";
+						} catch {
+							name = "Unknown User";
+						}
+					}
+					return `│${index + 1}. ${name}\n│𝐓𝐈𝐃: ${thread.threadID}`;
+				}));
+				return `╭─╮\n│𝐏𝐞𝐫𝐬𝐨𝐧𝐚𝐥 𝐈𝐧𝐛𝐨𝐱𝐞𝐬:\n${result.join("\n")}\n╰───────────ꔪ`;
+			};
 
-  const index = parseInt(args[0]) - 1;
-  if (isNaN(index) || index < 0 || index >= threadList.length) {
-    return api.sendMessage("❌ Invalid group number.", event.threadID, event.messageID);
-  }
+			const groupListText = groupThreads.length > 0 ? await formatGroupThreads(groupThreads) : "No group chats found.";
+			const userListText = userThreads.length > 0 ? await formatUserThreads(userThreads) : "No inboxes found.";
 
-  const threadToJoin = threadList[index];
-  try {
-    await api.addUserToGroup(event.senderID, threadToJoin.id);
-    return api.sendMessage(`✅ You have been added to Group ${index + 1}`, event.threadID, event.messageID);
-  } catch (err) {
-    return api.sendMessage("⚠️ Failed to add. Maybe you're already in the group or I lack permission.", event.threadID, event.messageID);
-  }
+			await api.sendMessage(`${groupListText}\n\n${userListText}`, event.threadID, event.messageID);
+
+		} catch (err) {
+			console.error("❌ Error listing chats:", err);
+			await api.sendMessage("⚠️ Something went wrong while listing chats.", event.threadID);
+		}
+	}
 };
