@@ -1,4 +1,4 @@
-.cmd install join.js module.exports.config = {
+module.exports.config = {
   name: "join",
   version: "1.2",
   credits: "Tarek x ChatGPT",
