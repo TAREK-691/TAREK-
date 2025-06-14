@@ -1,4 +1,4 @@
-.cmd install flas.js const axios = require("axios");
+const axios = require("axios");
 const fs = require("fs-extra");
 const { loadImage, createCanvas } = require("canvas");
 
