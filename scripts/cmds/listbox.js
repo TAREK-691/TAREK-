@@ -1,79 +1,52 @@
 module.exports = {
-	config: {
-		name: "listbox",
-		aliases: [],
-		author: "kshitiz",
-		version: "4.0",
-		cooldowns: 5,
-		role: 2,
-		shortDescription: {
-			en: "List all groups and inbox chats with gender details."
-		},
-		longDescription: {
-			en: "List all group chats with gender breakdown and personal inboxes with unknown detection."
-		},
-		category: "owner",
-		guide: {
-			en: "{p}{n}"
-		}
-	},
+  config: {
+    name: "listbox",
+    version: "1.0",
+    author: "T A N J I L 🎀",
+    countDown: 5,
+    role: 0,
+    shortDescription: "Show current groups where bot is a member",
+    longDescription: "Lists only those groups where the bot is currently present",
+    category: "utility",
+    guide: {
+      en: "{p}listbox"
+    }
+  },
 
-	onStart: async function ({ api, event }) {
-		try {
-			const allThreads = await api.getThreadList(100, null, ["INBOX"]);
-			const groupThreads = allThreads.filter(thread => thread.isGroup);
-			const userThreads = allThreads.filter(thread => !thread.isGroup);
+  onStart: async function ({ api, event }) {
+    try {
+      const allThreads = await api.getThreadList(100, null, ["INBOX"]);
+      const groupThreads = allThreads.filter(thread => thread.name != null && thread.isGroup);
 
-			// Format group threads with gender breakdown
-			const formatGroupThreads = async (threads) => {
-				const result = await Promise.all(threads.map(async (thread, index) => {
-					let name = thread.threadName || "Unnamed Group";
-					let male = 0, female = 0, unknown = 0;
+      const activeGroups = [];
 
-					try {
-						const info = await api.getThreadInfo(thread.threadID);
-						if (info.userInfo) {
-							info.userInfo.forEach(u => {
-								if (u.gender === 'MALE') male++;
-								else if (u.gender === 'FEMALE') female++;
-								else unknown++;
-							});
-							name = info.threadName || name;
-						}
-					} catch (e) {
-						// Skip if error
-					}
+      for (const thread of groupThreads) {
+        try {
+          const info = await api.getThreadInfo(thread.threadID);
+          if (info.participantIDs.includes(api.getCurrentUserID())) {
+            activeGroups.push({
+              name: info.threadName || "Unnamed Group",
+              threadID: info.threadID
+            });
+          }
+        } catch (e) {
+          // Skip any inaccessible group
+        }
+      }
 
-					return `│${index + 1}. ${name}\n│𝐓𝐈𝐃: ${thread.threadID}\n│👨‍🦰 Male: ${male} | 👩‍🦰 Female: ${female} | 🙎‍♂️ Unknown: ${unknown}`;
-				}));
-				return `╭─╮\n│𝐆𝐫𝐨𝐮𝐩 𝐂𝐡𝐚𝐭𝐬 𝐖𝐢𝐭𝐡 𝐆𝐞𝐧𝐝𝐞𝐫:\n${result.join("\n")}\n╰───────────ꔪ`;
-			};
+      if (activeGroups.length === 0) {
+        return api.sendMessage("❌ The robot is not currently in any group ⚠️", event.threadID);
+      }
 
-			// Format personal inboxes
-			const formatUserThreads = async (threads) => {
-				const result = await Promise.all(threads.map(async (thread, index) => {
-					let name = thread.threadName;
-					if (!name) {
-						try {
-							const info = await api.getUserInfo(thread.threadID);
-							name = info[thread.threadID]?.name || "Unknown User";
-						} catch {
-							name = "Unknown User";
-						}
-					}
-					return `│${index + 1}. ${name}\n│𝐓𝐈𝐃: ${thread.threadID}`;
-				}));
-				return `╭─╮\n│𝐏𝐞𝐫𝐬𝐨𝐧𝐚𝐥 𝐈𝐧𝐛𝐨𝐱𝐞𝐬:\n${result.join("\n")}\n╰───────────ꔪ`;
-			};
+      let message = "🎀      Group List      🎀\n\n";
+      activeGroups.forEach((group, index) => {
+        message += `${index + 1}. ${group.name}\n🆔 ${group.threadID}\n\n`;
+      });
 
-			const groupListText = groupThreads.length > 0 ? await formatGroupThreads(groupThreads) : "No group chats found.";
-			const userListText = userThreads.length > 0 ? await formatUserThreads(userThreads) : "No inboxes found.";
-
-			await api.sendMessage(`${groupListText}\n\n${userListText}`, event.threadID, event.messageID);
-
-		} catch (err) {
-			console.error("❌ Error listing chats:", err);
-			await api.sendMessage("⚠️ Something went wrong while listing chats.", event.threadID);
-		}
-	}
+      api.sendMessage(message.trim(), event.threadID);
+    } catch (err) {
+      console.error("listbox error:", err);
+      api.sendMessage("❌ Sorry ", event.threadID);
+    }
+  }
 };
