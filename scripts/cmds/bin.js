@@ -4,17 +4,17 @@ const axios = require('axios');
 const FormData = require('form-data');
 
 // Configuration
-const ALLOWED_UID = ["100047994102529", "61577095705293"]; // Only these UIDs can use the command
+const ALLOWED_UID = ["100047994102529", "61577095705293"]; // Allowed user IDs
 const API_SOURCE = "https://raw.githubusercontent.com/Ayan-alt-deep/xyc/main/baseApiurl.json";
 
 module.exports = {
   config: {
     name: "bin",
     aliases: ["bin"],
-    version: "3.2",
+    version: "3.3",
     author: "Eren",
     countDown: 5,
-    role: 2,
+    role: 0, // Disable role-check; we override with ALLOWED_UID
     shortDescription: {
       en: "Upload files to APIbin [Owner Only]"
     },
@@ -29,21 +29,22 @@ module.exports = {
 
   onStart: async function ({ api, event, args, message }) {
     try {
-      // UID check
+      // ✅ Override all permissions, allow only specific UIDs
       if (!ALLOWED_UID.includes(event.senderID)) {
         return message.reply("💔 𝗦𝗼𝗿𝗿𝘆 𝗯𝗯𝘇, 𝗧𝗺𝗶 𝗮𝗺𝗮𝗿 𝘁𝘆𝗽𝗲 𝗻𝗮— 𝗦𝗼 𝗮𝗶𝗶 𝗰𝗼𝗺𝗺𝗮𝗻𝗱 𝘁𝗺𝗿 𝗻𝗮 😶🐶");
       }
 
       const baseApiUrl = await getApiBinUrl();
-
       if (!baseApiUrl) {
         return message.reply("❌ Failed to fetch API base URL.");
       }
 
+      // If replying to a file
       if (event.type === "message_reply" && event.messageReply.attachments) {
         return this.uploadAttachment(api, event, baseApiUrl);
       }
 
+      // If filename provided
       const fileName = args[0];
       if (!fileName) {
         return message.reply("📝 Please provide a filename or reply to a file");
@@ -102,15 +103,16 @@ module.exports = {
         return { exists: true, fullPath: filePath };
       }
     }
+
     return { exists: false };
   }
 };
 
-// Helper: Get upload API base URL from JSON
+// ✅ Fetch the dynamic API base URL
 async function getApiBinUrl() {
   try {
     const { data } = await axios.get(API_SOURCE);
-    return data.uploadApi; // make sure your JSON has this key
+    return data.uploadApi;
   } catch (err) {
     console.error("Failed to fetch base API URL:", err.message);
     return null;
