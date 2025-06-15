@@ -1,94 +1,92 @@
-const axios = require("axios");
-const fs = require("fs-extra");
-const request = require("request");
-
 module.exports = {
-	config: {
-		name: "join",
-		version: "2.0",
-		author: "Kshitiz",
-		countDown: 5,
-		role: 0,
-		shortDescription: "Join the group that bot is in",
-		longDescription: "",
-		category: "owner",
-		guide: {
-			en: "{p}{n}",
-		},
-	},
+  config: {
+    name: "join",
+    version: "3.0",
+    author: "T A N J I L 🎀",
+    countDown: 5,
+    role: 0,
+    shortDescription: "Join a group where bot is currently in",
+    longDescription: "Shows a list of only the groups where bot is a current member",
+    category: "owner",
+    guide: {
+      en: "{p}{n}"
+    }
+  },
 
-	onStart: async function ({ api, event }) {
-		try {
-			const groupList = await api.getThreadList(10, null, ['INBOX']);
+  onStart: async function ({ api, event }) {
+    try {
+      const allThreads = await api.getThreadList(100, null, ["INBOX"]);
+      const groupThreads = allThreads.filter(thread => thread.name != null && thread.participantIDs.length > 2);
 
-			const filteredList = groupList.filter(group => group.threadName !== null);
+      const activeGroups = [];
 
-			if (filteredList.length === 0) {
-				api.sendMessage('No group chats found.', event.threadID);
-			} else {
-				const formattedList = filteredList.map((group, index) =>
-					`│${index + 1}. ${group.threadName}\n│𝐓𝐈𝐃: ${group.threadID}\n│𝐓𝐨𝐭𝐚𝐥 𝐦𝐞𝐦𝐛𝐞𝐫𝐬: ${group.participantIDs.length}\n│`
-				);
-				const message = `╭─╮\n│𝐋𝐢𝐬𝐭 𝐨𝐟 𝐠𝐫𝐨𝐮𝐩 𝐜𝐡𝐚𝐭𝐬:\n${formattedList.map(line => `${line}`).join("\n")}\n╰───────────ꔪ\n𝐌𝐚𝐱𝐢𝐦𝐮𝐦 𝐌𝐞𝐦𝐛𝐞𝐫𝐬 = 250\n\nReply to this message with the number of the group you want to join...`;
+      for (const thread of groupThreads) {
+        try {
+          const info = await api.getThreadInfo(thread.threadID);
+          if (info.participantIDs.includes(api.getCurrentUserID())) {
+            activeGroups.push({
+              name: info.threadName || "Unnamed Group",
+              threadID: info.threadID,
+              participants: info.participantIDs.length
+            });
+          }
+        } catch (e) {
+          // Skip threads that throw error (maybe removed/archived)
+        }
+      }
 
-				const sentMessage = await api.sendMessage(message, event.threadID);
-				global.GoatBot.onReply.set(sentMessage.messageID, {
-					commandName: 'join',
-					messageID: sentMessage.messageID,
-					author: event.senderID,
-				});
-			}
-		} catch (error) {
-			console.error("Error listing group chats", error);
-		}
-	},
+      if (activeGroups.length === 0) {
+        return api.sendMessage("⚠️ Currently the bot is not in any group chats.", event.threadID);
+      }
 
-	onReply: async function ({ api, event, Reply, args }) {
-		const { author, commandName } = Reply;
+      let message = "📃 Groups where bot is currently a member:\n\n";
+      activeGroups.forEach((group, index) => {
+        message += `${index + 1}. ${group.name}\n✨TID: ${group.threadID}\n🎀 Members: ${group.participants}\n\n`;
+      });
+      message += "📝 Reply with the number of the group you want to join.";
 
-		if (event.senderID !== author) {
-			return;
-		}
+      const msg = await api.sendMessage(message, event.threadID);
+      global.GoatBot.onReply.set(msg.messageID, {
+        commandName: "join",
+        author: event.senderID,
+        groupList: activeGroups
+      });
+    } catch (err) {
+      console.error("❌ Error:", err);
+      api.sendMessage("❌ Error occurred while fetching group list.", event.threadID);
+    }
+  },
 
-		const groupIndex = parseInt(args[0], 10);
+  onReply: async function ({ api, event, Reply }) {
+    const { author, groupList } = Reply;
 
-		if (isNaN(groupIndex) || groupIndex <= 0) {
-			api.sendMessage('Invalid input.\nPlease provide a valid number.', event.threadID, event.messageID);
-			return;
-		}
+    if (event.senderID !== author) return;
 
-		try {
-			const groupList = await api.getThreadList(10, null, ['INBOX']);
-			const filteredList = groupList.filter(group => group.threadName !== null);
+    const choice = parseInt(event.body);
+    if (isNaN(choice) || choice < 1 || choice > groupList.length) {
+      return api.sendMessage("⚠️ Invalid input. Please enter a valid number.", event.threadID);
+    }
 
-			if (groupIndex > filteredList.length) {
-				api.sendMessage('Invalid group number.\nPlease choose a number within the range.', event.threadID, event.messageID);
-				return;
-			}
+    const selectedGroup = groupList[choice - 1];
 
-			const selectedGroup = filteredList[groupIndex - 1];
-			const groupID = selectedGroup.threadID;
+    try {
+      const info = await api.getThreadInfo(selectedGroup.threadID);
 
-			// Check if the user is already in the group
-			const memberList = await api.getThreadInfo(groupID);
-			if (memberList.participantIDs.includes(event.senderID)) {
-				api.sendMessage(`Can't add you, you are already in the group chat: \n${selectedGroup.threadName}`, event.threadID, event.messageID);
-				return;
-			}
+      if (info.participantIDs.includes(event.senderID)) {
+        return api.sendMessage(`ℹ️ You are already in "${selectedGroup.name}".`, event.threadID);
+      }
 
-			// Check if group is full
-			if (memberList.participantIDs.length >= 250) {
-				api.sendMessage(`Can't add you, the group chat is full: \n${selectedGroup.threadName}`, event.threadID, event.messageID);
-				return;
-			}
+      if (info.participantIDs.length >= 250) {
+        return api.sendMessage(`🚫 Group "${selectedGroup.name}" is full (250 members).`, event.threadID);
+      }
 
-			await api.addUserToGroup(event.senderID, groupID);
-			api.sendMessage(`You have joined the group chat: ${selectedGroup.threadName}`, event.threadID, event.messageID);
-		} catch (error) {
-			console.error("Error joining group chat", error);
-			api.sendMessage('An error occurred while joining the group chat.\nPlease try again later.', event.threadID, event.messageID);
-		} finally {
-			global.GoatBot.onReply.delete(event.messageID);
-		}
-	},
+      await api.addUserToGroup(event.senderID, selectedGroup.threadID);
+      api.sendMessage(`✅ You have joined the group: "${selectedGroup.name}"`, event.threadID);
+    } catch (e) {
+      console.error("❌ Add error:", e);
+      api.sendMessage("⚠️ Couldn't add you. Maybe the group is archived or bot lacks permission.", event.threadID);
+    } finally {
+      global.GoatBot.onReply.delete(Reply.messageID);
+    }
+  }
 };
