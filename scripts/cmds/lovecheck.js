@@ -7,7 +7,7 @@ module.exports = {
     shortDescription: "Love meter check",
     longDescription: "Random funny love meter showing relationship level, heart status, and drama level",
     guide: {
-      en: "{p}love [name]",
+      en: "{p}❤️ [name]",
     },
   },
 
