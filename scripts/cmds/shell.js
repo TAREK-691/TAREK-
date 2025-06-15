@@ -1,4 +1,3 @@
-Command executed successfully:
 const { exec } = require('child_process');
 
 module.exports = {
@@ -10,7 +9,7 @@ module.exports = {
     role: 2,
     shortDescription: "Execute shell commands",
     longDescription: "",
-    category: "ADMIN",
+    category: "shell",
     guide: {
       vi: "{p}{n} <command>",
       en: "{p}{n} <command>"
