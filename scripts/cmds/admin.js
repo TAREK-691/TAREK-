@@ -50,7 +50,7 @@ module.exports = {
   },
 
   onStart: async function ({ message, args, usersData, event, getLang }) {
-    const config = global.GoatBot.config; // 🛠️ এটা যোগ করা হয়েছে error fix এর জন্য
+    const config = global.GoatBot.config;
 
     switch (args[0]) {
       case "add":
@@ -60,6 +60,7 @@ module.exports = {
           if (Object.keys(event.mentions).length > 0) uids = Object.keys(event.mentions);
           else if (event.messageReply) uids.push(event.messageReply.senderID);
           else uids = args.slice(1).filter((arg) => !isNaN(arg));
+
           const notAdminIds = [];
           const adminIds = [];
 
@@ -100,6 +101,7 @@ module.exports = {
           if (Object.keys(event.mentions).length > 0) uids = Object.keys(event.mentions);
           else if (event.messageReply) uids.push(event.messageReply.senderID);
           else uids = args.slice(1).filter((arg) => !isNaN(arg));
+
           const notAdminIds = [];
           const adminIds = [];
 
@@ -107,8 +109,15 @@ module.exports = {
             if (config.adminBot.includes(uid)) adminIds.push(uid);
             else notAdminIds.push(uid);
           }
-          for (const uid of adminIds) config.adminBot.splice(config.adminBot.indexOf(uid), 1);
-          const getNames = await Promise.all(adminIds.map((uid) => usersData.getName(uid).then((name) => ({ uid, name }))));
+
+          for (const uid of adminIds)
+            config.adminBot.splice(config.adminBot.indexOf(uid), 1);
+
+          const getNames = await Promise.all(
+            adminIds.map((uid) =>
+              usersData.getName(uid).then((name) => ({ uid, name }))
+            )
+          );
           writeFileSync(global.client.dirConfig, JSON.stringify(config, null, 2));
           return message.reply(
             (adminIds.length > 0
@@ -127,11 +136,6 @@ module.exports = {
 
       case "list":
       case "-l": {
-        const ownerInfo = `📌 𝗕𝗢𝗧 𝗢𝗪𝗡𝗘𝗥 𝗜𝗡𝗙𝗢
-
-             • 𝗧𝗮𝗿𝗲𝗸 •         (100047994102529)
-`;
-
         const names = await Promise.all(
           config.adminBot.map((uid) =>
             usersData.getName(uid).catch(() => "Unknown")
@@ -145,7 +149,7 @@ module.exports = {
           }
         }
 
-        const finalText = `${ownerInfo}\n👤𝗔𝗗𝗠𝗜𝗡𝗦\n${adminList}`;
+        const finalText = `👤𝗔𝗗𝗠𝗜𝗡𝗦\n${adminList}`;
 
         return message.reply(finalText);
       }
