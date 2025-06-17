@@ -8,7 +8,7 @@ module.exports = {
     name: "fk",
     aliases: ["fk"],
     version: "1.0",
-    author: "Efat",
+    author: "Tarek",
     countDown: 5,
     role: 0,
     shortDescription: "FK with custom image",
@@ -25,7 +25,6 @@ module.exports = {
     let mentionedID = mention[0];
 
     try {
-      // Detect gender (fallback to male/female)
       const senderData = await usersData.get(senderID);
       const mentionedData = await usersData.get(mentionedID);
 
@@ -42,7 +41,6 @@ module.exports = {
         femaleID = senderID;
       }
 
-      // Fetch avatars
       const avatarMale = await usersData.getAvatarUrl(maleID);
       const avatarFemale = await usersData.getAvatarUrl(femaleID);
 
@@ -51,43 +49,43 @@ module.exports = {
         Canvas.loadImage(avatarFemale)
       ]);
 
-      // Load background image
-      const bgUrl = "http://remakeai-production.up.railway.app/Remake_Ai/Nyx_Remake_1746747501339.gif";
+      const bgUrl = "https://files.catbox.moe/t7yf7u.jpg";
       const bgRes = await axios.get(bgUrl, { responseType: "arraybuffer" });
       const bg = await Canvas.loadImage(bgRes.data);
 
-      // Canvas setup
-      const canvasWidth = 900;
+      const canvasWidth = 850;
       const canvasHeight = 600;
       const canvas = Canvas.createCanvas(canvasWidth, canvasHeight);
       const ctx = canvas.getContext("2d");
 
-      // Draw background
       ctx.drawImage(bg, 0, 0, canvasWidth, canvasHeight);
 
-      // Avatar settings
-      const avatarSize = 230;
+      // 🛠️ Avatar size increased
+      const avatarSize = 170;
       const y = canvasHeight / 2 - avatarSize - 90;
 
-      // Draw female avatar (left)
+      // 👩 Female avatar (slightly up and left)
       ctx.save();
+      const femaleX = 300;
+      const yFemale = y - 30;
       ctx.beginPath();
-      ctx.arc(100 + avatarSize / 2, y + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+      ctx.arc(femaleX + avatarSize / 2, yFemale + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(avatarImgFemale, 100, y, avatarSize, avatarSize);
+      ctx.drawImage(avatarImgFemale, femaleX, yFemale, avatarSize, avatarSize);
       ctx.restore();
 
-      // Draw male avatar (right)
+      // 👨 Male avatar (down)
       ctx.save();
+      const maleX = 130;
+      const yMale = y + 290;
       ctx.beginPath();
-      ctx.arc(canvasWidth - 150 - avatarSize / 2, y + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+      ctx.arc(maleX + avatarSize / 2, yMale + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(avatarImgMale, canvasWidth - 150 - avatarSize, y, avatarSize, avatarSize);
+      ctx.drawImage(avatarImgMale, maleX, yMale, avatarSize, avatarSize);
       ctx.restore();
 
-      // Save and send image
       const imgPath = path.join(__dirname, "tmp", `${maleID}_${femaleID}_fk.png`);
       await fs.ensureDir(path.dirname(imgPath));
       fs.writeFileSync(imgPath, canvas.toBuffer("image/png"));
